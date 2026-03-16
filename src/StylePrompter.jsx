@@ -198,7 +198,7 @@ CRITICAL RULES:
 - Describe sonic textures, spatial qualities, rhythmic feel, dynamic movement
 - Use producer language: "warm analog warmth bleeds through the mix", "kicks punch through a tight sidechain"
 - Include arrangement/energy arc direction
-- Stay under 650 characters (Foundation takes ~350)
+- Aim for 550-750 characters. Use the full range — longer is better. Foundation takes ~250 of the 1000-char limit.
 - Do NOT repeat genre names or BPM (already in Foundation)
 - Do NOT use [Verse]/[Chorus] brackets — Style field only
 - Do NOT include any negative/exclude instructions (e.g. "no X", "avoid Y") — those go in a separate field, NOT in the style prompt. Every token in your output should be a POSITIVE description.
@@ -475,7 +475,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:9,color:(editMode?combinedEdit:fullPrompt).length>1000?"#ef4444":"#22c55e"}}>{(editMode?combinedEdit:fullPrompt).length}/1000</span>
                       {!editMode&&performance&&<button onClick={()=>{setEditMode(true);setCombinedEdit(fullPrompt);if(history.length>0&&history[0].rating===null){const u=[{...history[0],edits:{...history[0].edits,original:fullPrompt}},...history.slice(1)];saveHistory(u);if(history[0].sbId)sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_original:fullPrompt});}}} style={{background:"transparent",border:"1px solid #eab308",borderRadius:4,padding:"4px 10px",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#eab308"}}>✎ Edit</button>}
-                      {editMode&&<button onClick={()=>{setEditMode(false);if(history.length>0&&history[0].rating===null&&combinedEdit&&history[0].sbId){sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_final:combinedEdit,edited:true});}setCombinedEdit("");}} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#555",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
+                      {editMode&&<button onClick={()=>{if(history.length>0&&history[0].rating===null&&history[0].sbId){sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_final:combinedEdit||fullPrompt,edited:combinedEdit!==fullPrompt});}setEditMode(false);setCombinedEdit("");}} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#555",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
                       <button onClick={()=>copy(editMode?combinedEdit:fullPrompt,"full")} style={{background:copied==="full"?"#22c55e":"#a78bfa",color:"#000",border:"none",borderRadius:4,padding:"4px 12px",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{copied==="full"?"COPIED!":"COPY"}</button>
                     </div>
                   </div>
