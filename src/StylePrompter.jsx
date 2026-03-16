@@ -56,19 +56,22 @@ export default function StylePrompter(){
   const[history,setHistory]=useState(loadHistory);
   const pendingRating=history.length>0&&history[0].rating===null;
   const saveHistory=(h)=>{setHistory(h);try{localStorage.setItem("suno_style_history",JSON.stringify(h.slice(0,50)));}catch{}};
-  const addToHistory=(prompt,genres,mdl)=>{
+  const addToHistory=async(prompt,genres,mdl)=>{
     const entry={id:Date.now(),ts:new Date().toISOString(),genres:genres.map(g=>g.n),mode,model:mdl,prompt,instrumental,rating:null,
-      edits:{original:prompt,final:prompt,edited:false}
+      edits:{original:prompt,final:prompt,edited:false},sbId:null
     };
+    // Push to Supabase and capture row ID
+    try{
+      const r=await sbInsert('style_history',{ip:'browser',genres:genres.map(g=>g.n),mode,model:mdl,prompt,instrumental,edit_original:prompt,edit_final:prompt,edited:false});
+      const d=await r?.json?.();
+      if(d?.[0]?.id)entry.sbId=d[0].id;
+    }catch{}
     saveHistory([entry,...history]);
-    // Push to Supabase
-    sbInsert('style_history',{ip:'browser',genres:genres.map(g=>g.n),mode,model:mdl,prompt,instrumental,edit_original:prompt,edit_final:prompt,edited:false});
   };
   const rateEntry=(id,rating)=>{
     const h=history.find(x=>x.id===id);
     saveHistory(history.map(x=>x.id===id?{...x,rating}:x));
-    // Push rating to Supabase (match by timestamp)
-    if(h)sbUpdate('style_history',`created_at=eq.${encodeURIComponent(h.ts)}`,{rating});
+    if(h?.sbId)sbUpdate('style_history',`id=eq.${h.sbId}`,{rating});
   };
   const StarRating=({value,onChange,size=14})=>(
     <div style={{display:"flex",gap:2}}>{[1,2,3,4,5].map(s=>(
@@ -194,7 +197,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
       setEditMode(false);
       setCombinedEdit("");
       const fp=getFoundation(sel,bpm?parseInt(bpm):null,instrumental,getWeights())+(result?". "+result:"");
-      addToHistory(fp,sel,aiModel);
+      addToHistory(fp,sel,useBYOK?aiModel:"claude-sonnet-4-6");
     }catch(e){setPerformance("Error: "+e.message);}
     setLoading(false);
   };
@@ -454,8 +457,8 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                     <span style={{fontSize:9,color:"#555",textTransform:"uppercase"}}>Combined Prompt {editMode&&<span style={{color:"#eab308",fontSize:8,marginLeft:4}}>● editing</span>}</span>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:9,color:(editMode?combinedEdit:fullPrompt).length>1000?"#ef4444":"#22c55e"}}>{(editMode?combinedEdit:fullPrompt).length}/1000</span>
-                      {!editMode&&performance&&<button onClick={()=>{setEditMode(true);setCombinedEdit(fullPrompt);if(history.length>0&&history[0].rating===null){const u=[{...history[0],edits:{...history[0].edits,original:fullPrompt}},...history.slice(1)];saveHistory(u);sbUpdate('style_history',`created_at=eq.${encodeURIComponent(history[0].ts)}`,{edit_original:fullPrompt});}}} style={{background:"transparent",border:"1px solid #eab308",borderRadius:4,padding:"4px 10px",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#eab308"}}>✎ Edit</button>}
-                      {editMode&&<button onClick={()=>{setEditMode(false);if(history.length>0&&history[0].rating===null&&combinedEdit){sbUpdate('style_history',`created_at=eq.${encodeURIComponent(history[0].ts)}`,{edit_final:combinedEdit,edited:true});}setCombinedEdit("");}} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#555",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
+                      {!editMode&&performance&&<button onClick={()=>{setEditMode(true);setCombinedEdit(fullPrompt);if(history.length>0&&history[0].rating===null){const u=[{...history[0],edits:{...history[0].edits,original:fullPrompt}},...history.slice(1)];saveHistory(u);if(history[0].sbId)sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_original:fullPrompt});}}} style={{background:"transparent",border:"1px solid #eab308",borderRadius:4,padding:"4px 10px",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#eab308"}}>✎ Edit</button>}
+                      {editMode&&<button onClick={()=>{setEditMode(false);if(history.length>0&&history[0].rating===null&&combinedEdit&&history[0].sbId){sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_final:combinedEdit,edited:true});}setCombinedEdit("");}} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#555",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
                       <button onClick={()=>copy(editMode?combinedEdit:fullPrompt,"full")} style={{background:copied==="full"?"#22c55e":"#a78bfa",color:"#000",border:"none",borderRadius:4,padding:"4px 12px",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{copied==="full"?"COPIED!":"COPY"}</button>
                     </div>
                   </div>

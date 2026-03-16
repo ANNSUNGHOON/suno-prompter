@@ -142,17 +142,21 @@ export default function LyricsPrompter() {
   const [history, setHistory] = useState(loadHistory);
   const pendingRating = history.length > 0 && history[0].rating === null;
   const saveHistory = (h) => { setHistory(h); try { localStorage.setItem("suno_lyrics_history", JSON.stringify(h.slice(0, 50))); } catch {} };
-  const addToHistory = (prompt, mdl) => {
+  const addToHistory = async (prompt, mdl) => {
     const entry = { id: Date.now(), ts: new Date().toISOString(), genre, sections: sections.map(s => s.tag), isInst, model: mdl, prompt, rating: null,
-      edits: { original: prompt, final: prompt, edited: false }
+      edits: { original: prompt, final: prompt, edited: false }, sbId: null
     };
+    try {
+      const r = await sbInsert('lyrics_history', { ip: 'browser', genre, sections: sections.map(s => s.tag), is_inst: isInst, model: mdl, prompt, edit_original: prompt, edit_final: prompt, edited: false });
+      const d = await r?.json?.();
+      if (d?.[0]?.id) entry.sbId = d[0].id;
+    } catch {}
     saveHistory([entry, ...history]);
-    sbInsert('lyrics_history', { ip: 'browser', genre, sections: sections.map(s => s.tag), is_inst: isInst, model: mdl, prompt, edit_original: prompt, edit_final: prompt, edited: false });
   };
   const rateEntry = (id, rating) => {
     const h = history.find(x => x.id === id);
     saveHistory(history.map(x => x.id === id ? { ...x, rating } : x));
-    if (h) sbUpdate('lyrics_history', `created_at=eq.${encodeURIComponent(h.ts)}`, { rating });
+    if (h?.sbId) sbUpdate('lyrics_history', `id=eq.${h.sbId}`, { rating });
   };
   const StarRating = ({ value, onChange, size = 14 }) => (
     <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(s => (
@@ -322,7 +326,7 @@ Generate the Suno V5 Lyrics field content now.`;
       const aiResult = await callAI(sysPrompt, userMsg);
       setResult(aiResult);
       setEditMode(false);
-      addToHistory(aiResult, aiModel);
+      addToHistory(aiResult, useBYOK ? aiModel : "claude-sonnet-4-6");
     } catch (e) { setResult("Error: " + e.message); }
     setLoading(false);
   };
@@ -602,8 +606,8 @@ Generate the Suno V5 Lyrics field content now.`;
                 <span style={{ fontSize: 9, color: charCount > 5000 ? "#ef4444" : charCount > 3000 ? "#eab308" : "#22c55e" }}>
                   {charCount} / 5000
                 </span>
-                {!editMode && result && <button onClick={() => { setEditMode(true); if (history.length > 0 && history[0].rating === null) { const u = [{ ...history[0], edits: { ...history[0].edits, original: result } }, ...history.slice(1)]; saveHistory(u); sbUpdate('lyrics_history', `created_at=eq.${encodeURIComponent(history[0].ts)}`, { edit_original: result }); } }} style={{ background: "transparent", border: "1px solid #eab308", borderRadius: 4, padding: "4px 10px", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", color: "#eab308" }}>✎ Edit</button>}
-                {editMode && <button onClick={() => { setEditMode(false); if (history.length > 0 && history[0].rating === null && result) { sbUpdate('lyrics_history', `created_at=eq.${encodeURIComponent(history[0].ts)}`, { edit_final: result, edited: true }); } }} style={{ background: "transparent", border: "1px solid #1a1a28", borderRadius: 3, padding: "2px 6px", color: "#555", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>Lock</button>}
+                {!editMode && result && <button onClick={() => { setEditMode(true); if (history.length > 0 && history[0].rating === null) { const u = [{ ...history[0], edits: { ...history[0].edits, original: result } }, ...history.slice(1)]; saveHistory(u); if (history[0].sbId) sbUpdate('lyrics_history', `id=eq.${history[0].sbId}`, { edit_original: result }); } }} style={{ background: "transparent", border: "1px solid #eab308", borderRadius: 4, padding: "4px 10px", fontSize: 9, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", color: "#eab308" }}>✎ Edit</button>}
+                {editMode && <button onClick={() => { setEditMode(false); if (history.length > 0 && history[0].rating === null && result && history[0].sbId) { sbUpdate('lyrics_history', `id=eq.${history[0].sbId}`, { edit_final: result, edited: true }); } }} style={{ background: "transparent", border: "1px solid #1a1a28", borderRadius: 3, padding: "2px 6px", color: "#555", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>Lock</button>}
                 <button onClick={copyToClipboard} style={{
                   background: copied ? "#22c55e" : "#f472b6", color: "#000", border: "none", borderRadius: 4,
                   padding: "4px 12px", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
