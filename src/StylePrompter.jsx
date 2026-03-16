@@ -29,6 +29,8 @@ const sbH={'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'ap
 const sbInsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:sbH,body:JSON.stringify(data)}).catch(()=>{});
 const sbUpsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:{...sbH,'Prefer':'return=representation,resolution=merge-duplicates'},body:JSON.stringify(data)}).catch(()=>{});
 const sbUpdate=(table,match,data)=>fetch(`${SB_URL}/${table}?${match}`,{method:'PATCH',headers:{...sbH,'Prefer':'return=minimal'},body:JSON.stringify(data)}).catch(()=>{});
+let _userIP='unknown';
+const getIP=()=>_userIP;
 
 export default function StylePrompter(){
   const[sel,setSel]=useState([]);
@@ -63,7 +65,7 @@ export default function StylePrompter(){
     };
     // Push to Supabase and capture row ID
     try{
-      const r=await sbInsert('style_history',{ip:'browser',genres:genres.map(g=>g.n),mode,model:mdl,prompt,instrumental,edit_original:prompt,edit_final:prompt,edited:false});
+      const r=await sbInsert('style_history',{ip:getIP(),genres:genres.map(g=>g.n),mode,model:mdl,prompt,instrumental,edit_original:prompt,edit_final:prompt,edited:false});
       const d=await r?.json?.();
       if(d?.[0]?.id)entry.sbId=d[0].id;
     }catch{}
@@ -86,15 +88,15 @@ export default function StylePrompter(){
   const LIMIT=10;
   const sbGetUsage=async()=>{
     try{const today=new Date().toISOString().slice(0,10);
-    const r=await fetch(`${SB_URL}/rate_limits?ip=eq.browser_user&date=eq.${today}&select=count`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`}});
+    const r=await fetch(`${SB_URL}/rate_limits?ip=eq.${getIP()}&date=eq.${today}&select=count`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`}});
     const d=await r.json();return d?.[0]?.count||0;}catch{return 0;}
   };
   const sbIncrementUsage=async()=>{
     try{const today=new Date().toISOString().slice(0,10);const current=await sbGetUsage();
-    await sbUpsert('rate_limits',{ip:'browser_user',date:today,count:current+1});
+    await sbUpsert('rate_limits',{ip:getIP(),date:today,count:current+1});
     setFreeRemaining(Math.max(0,LIMIT-current-1));}catch{}
   };
-  useEffect(()=>{sbGetUsage().then(used=>setFreeRemaining(Math.max(0,LIMIT-used)));},[]);
+  useEffect(()=>{fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{_userIP=d.ip;return sbGetUsage();}).then(used=>setFreeRemaining(Math.max(0,LIMIT-used))).catch(()=>{});},[]);
   const PROVIDERS={
     anthropic:{label:"Anthropic",placeholder:"sk-ant-xxx...",models:[{id:"claude-opus-4-6",n:"Opus 4.6"},{id:"claude-sonnet-4-6",n:"Sonnet 4.6"}]},
     openai:{label:"OpenAI",placeholder:"sk-xxx...",models:[{id:"gpt-5.4",n:"GPT-5.4"},{id:"gpt-5.3",n:"GPT-5.3"},{id:"gpt-4o",n:"GPT-4o"}]},
@@ -475,7 +477,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:9,color:(editMode?combinedEdit:fullPrompt).length>1000?"#ef4444":"#22c55e"}}>{(editMode?combinedEdit:fullPrompt).length}/1000</span>
                       {!editMode&&performance&&<button onClick={()=>{setEditMode(true);setCombinedEdit(fullPrompt);if(history.length>0&&history[0].rating===null){const u=[{...history[0],edits:{...history[0].edits,original:fullPrompt}},...history.slice(1)];saveHistory(u);if(history[0].sbId)sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_original:fullPrompt});}}} style={{background:"transparent",border:"1px solid #eab308",borderRadius:4,padding:"4px 10px",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#eab308"}}>✎ Edit</button>}
-                      {editMode&&<button onClick={()=>{if(history.length>0&&history[0].rating===null&&history[0].sbId){sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_final:combinedEdit||fullPrompt,edited:combinedEdit!==fullPrompt});}setEditMode(false);setCombinedEdit("");}} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#555",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
+                      {editMode&&<button onClick={()=>{if(history.length>0&&history[0].rating===null&&history[0].sbId){sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_final:fullPrompt,edited:false,prompt:fullPrompt});}const u=[{...history[0],prompt:fullPrompt,edits:{...history[0].edits,final:fullPrompt,edited:false}},...history.slice(1)];saveHistory(u);setEditMode(false);setCombinedEdit("");}} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#555",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
                       <button onClick={()=>copy(editMode?combinedEdit:fullPrompt,"full")} style={{background:copied==="full"?"#22c55e":"#a78bfa",color:"#000",border:"none",borderRadius:4,padding:"4px 12px",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{copied==="full"?"COPIED!":"COPY"}</button>
                     </div>
                   </div>

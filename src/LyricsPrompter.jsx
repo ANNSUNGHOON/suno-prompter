@@ -118,6 +118,8 @@ const sbH={'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'ap
 const sbInsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:sbH,body:JSON.stringify(data)}).catch(()=>{});
 const sbUpsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:{...sbH,'Prefer':'return=representation,resolution=merge-duplicates'},body:JSON.stringify(data)}).catch(()=>{});
 const sbUpdate=(table,match,data)=>fetch(`${SB_URL}/${table}?${match}`,{method:'PATCH',headers:{...sbH,'Prefer':'return=minimal'},body:JSON.stringify(data)}).catch(()=>{});
+let _userIP='unknown';
+const getIP=()=>_userIP;
 
 export default function LyricsPrompter() {
   const [genre, setGenre] = useState("EDM / Electronic");
@@ -148,7 +150,7 @@ export default function LyricsPrompter() {
       edits: { original: prompt, final: prompt, edited: false }, sbId: null
     };
     try {
-      const r = await sbInsert('lyrics_history', { ip: 'browser', genre, sections: sections.map(s => s.tag), is_inst: isInst, model: mdl, prompt, edit_original: prompt, edit_final: prompt, edited: false });
+      const r = await sbInsert('lyrics_history', { ip: getIP(), genre, sections: sections.map(s => s.tag), is_inst: isInst, model: mdl, prompt, edit_original: prompt, edit_final: prompt, edited: false });
       const d = await r?.json?.();
       if (d?.[0]?.id) entry.sbId = d[0].id;
     } catch {}
@@ -171,15 +173,15 @@ export default function LyricsPrompter() {
   const LIMIT = 10;
   const sbGetUsage = async () => {
     try { const today = new Date().toISOString().slice(0, 10);
-    const r = await fetch(`${SB_URL}/rate_limits?ip=eq.browser_user&date=eq.${today}&select=count`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } });
+    const r = await fetch(`${SB_URL}/rate_limits?ip=eq.${getIP()}&date=eq.${today}&select=count`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } });
     const d = await r.json(); return d?.[0]?.count || 0; } catch { return 0; }
   };
   const sbIncrementUsage = async () => {
     try { const today = new Date().toISOString().slice(0, 10); const current = await sbGetUsage();
-    await sbUpsert('rate_limits', { ip: 'browser_user', date: today, count: current + 1 });
+    await sbUpsert('rate_limits', { ip: getIP(), date: today, count: current + 1 });
     setFreeRemaining(Math.max(0, LIMIT - current - 1)); } catch {}
   };
-  useEffect(() => { sbGetUsage().then(used => setFreeRemaining(Math.max(0, LIMIT - used))); }, []);
+  useEffect(() => { fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => { _userIP = d.ip; return sbGetUsage(); }).then(used => setFreeRemaining(Math.max(0, LIMIT - used))).catch(() => {}); }, []);
   const PROVIDERS = {
     anthropic: { label: "Anthropic", placeholder: "sk-ant-xxx...", models: [{ id: "claude-opus-4-6", n: "Opus 4.6" }, { id: "claude-sonnet-4-6", n: "Sonnet 4.6" }] },
     openai: { label: "OpenAI", placeholder: "sk-xxx...", models: [{ id: "gpt-5.4", n: "GPT-5.4" }, { id: "gpt-5.3", n: "GPT-5.3" }, { id: "gpt-4o", n: "GPT-4o" }] },
