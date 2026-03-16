@@ -27,7 +27,8 @@ const SB_URL='https://jgfvwfalxnrdujaoqoiq.supabase.co/rest/v1';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZnZ3ZmFseG5yZHVqYW9xb2lxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTI4OTYsImV4cCI6MjA4OTIyODg5Nn0.amJtx-4ZGWi_psLbKte6z_W0oE1Ua9EWQxYVhHpatkc';
 const sbH={'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation'};
 const sbInsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:sbH,body:JSON.stringify(data)}).catch(()=>{});
-const sbUpdate=(table,match,data)=>fetch(`${SB_URL}/${table}?${match}`,{method:'PATCH',headers:{...sbH,'Prefer':undefined},body:JSON.stringify(data)}).catch(()=>{});
+const sbUpsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:{...sbH,'Prefer':'return=representation,resolution=merge-duplicates'},body:JSON.stringify(data)}).catch(()=>{});
+const sbUpdate=(table,match,data)=>fetch(`${SB_URL}/${table}?${match}`,{method:'PATCH',headers:{...sbH,'Prefer':'return=minimal'},body:JSON.stringify(data)}).catch(()=>{});
 
 export default function StylePrompter(){
   const[sel,setSel]=useState([]);
@@ -82,7 +83,18 @@ export default function StylePrompter(){
   // Dual mode: Free (server proxy, 10/day) + BYOK (own key, unlimited)
   const[useBYOK,setUseBYOK]=useState(false);
   const[freeRemaining,setFreeRemaining]=useState(10);
-  useEffect(()=>{fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"check_remaining"})}).then(r=>r.json()).then(d=>{if(d.remaining!==undefined)setFreeRemaining(d.remaining);}).catch(()=>{});},[]);
+  const LIMIT=10;
+  const sbGetUsage=async()=>{
+    try{const today=new Date().toISOString().slice(0,10);
+    const r=await fetch(`${SB_URL}/rate_limits?ip=eq.browser_user&date=eq.${today}&select=count`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`}});
+    const d=await r.json();return d?.[0]?.count||0;}catch{return 0;}
+  };
+  const sbIncrementUsage=async()=>{
+    try{const today=new Date().toISOString().slice(0,10);const current=await sbGetUsage();
+    await sbUpsert('rate_limits',{ip:'browser_user',date:today,count:current+1});
+    setFreeRemaining(Math.max(0,LIMIT-current-1));}catch{}
+  };
+  useEffect(()=>{sbGetUsage().then(used=>setFreeRemaining(Math.max(0,LIMIT-used)));},[]);
   const PROVIDERS={
     anthropic:{label:"Anthropic",placeholder:"sk-ant-xxx...",models:[{id:"claude-opus-4-6",n:"Opus 4.6"},{id:"claude-sonnet-4-6",n:"Sonnet 4.6"}]},
     openai:{label:"OpenAI",placeholder:"sk-xxx...",models:[{id:"gpt-5.4",n:"GPT-5.4"},{id:"gpt-5.3",n:"GPT-5.3"},{id:"gpt-4o",n:"GPT-4o"}]},
@@ -99,11 +111,16 @@ export default function StylePrompter(){
 
   const callAI=async(system,userMsg)=>{
     if(!useBYOK){
+      // Check Supabase rate limit first
+      const used=await sbGetUsage();
+      if(used>=LIMIT)throw new Error(`Daily limit reached (${LIMIT}/day). Enter your own API key in ⚙ for unlimited.`);
       // Free mode: server proxy
       const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system,messages:[{role:"user",content:userMsg}],temperature:randomize})});
-      const d=await r.json();
-      if(d._remaining!==undefined)setFreeRemaining(d._remaining);
+      const text=await r.text();
+      let d;try{d=JSON.parse(text);}catch{throw new Error("Server returned invalid response. Try again.");}
       if(!r.ok)throw new Error(d.error||"Server error");
+      // Increment Supabase rate limit on success
+      await sbIncrementUsage();
       return(d.content?.map(b=>b.type==="text"?b.text:"").join("")||"").trim();
     }
     // BYOK mode
@@ -197,7 +214,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
       setEditMode(false);
       setCombinedEdit("");
       const fp=getFoundation(sel,bpm?parseInt(bpm):null,instrumental,getWeights())+(result?". "+result:"");
-      addToHistory(fp,sel,useBYOK?aiModel:"claude-sonnet-4-6");
+      await addToHistory(fp,sel,useBYOK?aiModel:"claude-sonnet-4-6");
     }catch(e){setPerformance("Error: "+e.message);}
     setLoading(false);
   };
@@ -463,7 +480,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                     </div>
                   </div>
                   {editMode?(
-                    <textarea value={combinedEdit} onChange={e=>{setCombinedEdit(e.target.value);if(history.length>0&&history[0].rating===null){const u=[{...history[0],prompt:e.target.value,edits:{...history[0].edits,final:e.target.value,edited:true}},...history.slice(1)];saveHistory(u);}}} rows={5} style={{...iS,minHeight:100,resize:"vertical",lineHeight:1.7,color:"#d0d0dc"}}/>
+                    <textarea value={combinedEdit} onChange={e=>{const v=e.target.value;setCombinedEdit(v);if(history.length>0&&history[0].rating===null){const u=[{...history[0],prompt:v,edits:{...history[0].edits,final:v,edited:true}},...history.slice(1)];saveHistory(u);if(history[0].sbId)sbUpdate('style_history',`id=eq.${history[0].sbId}`,{edit_final:v,edited:true,prompt:v});}}} rows={5} style={{...iS,minHeight:100,resize:"vertical",lineHeight:1.7,color:"#d0d0dc"}}/>
                   ):(
                     <div style={{background:"#08080d",borderRadius:4,padding:10,fontSize:10,lineHeight:1.7,color:"#d0d0dc",border:"1px solid #1a1a24",whiteSpace:"pre-wrap",wordBreak:"break-word",maxHeight:200,overflowY:"auto"}}>{fullPrompt}</div>
                   )}

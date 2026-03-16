@@ -116,7 +116,8 @@ const SB_URL='https://jgfvwfalxnrdujaoqoiq.supabase.co/rest/v1';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnZnZ3ZmFseG5yZHVqYW9xb2lxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTI4OTYsImV4cCI6MjA4OTIyODg5Nn0.amJtx-4ZGWi_psLbKte6z_W0oE1Ua9EWQxYVhHpatkc';
 const sbH={'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation'};
 const sbInsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:sbH,body:JSON.stringify(data)}).catch(()=>{});
-const sbUpdate=(table,match,data)=>fetch(`${SB_URL}/${table}?${match}`,{method:'PATCH',headers:{...sbH,'Prefer':undefined},body:JSON.stringify(data)}).catch(()=>{});
+const sbUpsert=(table,data)=>fetch(`${SB_URL}/${table}`,{method:'POST',headers:{...sbH,'Prefer':'return=representation,resolution=merge-duplicates'},body:JSON.stringify(data)}).catch(()=>{});
+const sbUpdate=(table,match,data)=>fetch(`${SB_URL}/${table}?${match}`,{method:'PATCH',headers:{...sbH,'Prefer':'return=minimal'},body:JSON.stringify(data)}).catch(()=>{});
 
 export default function LyricsPrompter() {
   const [genre, setGenre] = useState("EDM / Electronic");
@@ -167,7 +168,18 @@ export default function LyricsPrompter() {
   // Dual mode: Free (server proxy, 10/day) + BYOK (own key, unlimited)
   const [useBYOK, setUseBYOK] = useState(false);
   const [freeRemaining, setFreeRemaining] = useState(10);
-  useEffect(() => { fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "check_remaining" }) }).then(r => r.json()).then(d => { if (d.remaining !== undefined) setFreeRemaining(d.remaining); }).catch(() => {}); }, []);
+  const LIMIT = 10;
+  const sbGetUsage = async () => {
+    try { const today = new Date().toISOString().slice(0, 10);
+    const r = await fetch(`${SB_URL}/rate_limits?ip=eq.browser_user&date=eq.${today}&select=count`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } });
+    const d = await r.json(); return d?.[0]?.count || 0; } catch { return 0; }
+  };
+  const sbIncrementUsage = async () => {
+    try { const today = new Date().toISOString().slice(0, 10); const current = await sbGetUsage();
+    await sbUpsert('rate_limits', { ip: 'browser_user', date: today, count: current + 1 });
+    setFreeRemaining(Math.max(0, LIMIT - current - 1)); } catch {}
+  };
+  useEffect(() => { sbGetUsage().then(used => setFreeRemaining(Math.max(0, LIMIT - used))); }, []);
   const PROVIDERS = {
     anthropic: { label: "Anthropic", placeholder: "sk-ant-xxx...", models: [{ id: "claude-opus-4-6", n: "Opus 4.6" }, { id: "claude-sonnet-4-6", n: "Sonnet 4.6" }] },
     openai: { label: "OpenAI", placeholder: "sk-xxx...", models: [{ id: "gpt-5.4", n: "GPT-5.4" }, { id: "gpt-5.3", n: "GPT-5.3" }, { id: "gpt-4o", n: "GPT-4o" }] },
@@ -184,10 +196,13 @@ export default function LyricsPrompter() {
 
   const callAI = async (system, userMsg) => {
     if (!useBYOK) {
+      const used = await sbGetUsage();
+      if (used >= LIMIT) throw new Error(`Daily limit reached (${LIMIT}/day). Enter your own API key in ⚙ for unlimited.`);
       const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system, messages: [{ role: "user", content: userMsg }], temperature: randomize }) });
-      const d = await r.json();
-      if (d._remaining !== undefined) setFreeRemaining(d._remaining);
+      const text = await r.text();
+      let d; try { d = JSON.parse(text); } catch { throw new Error("Server returned invalid response. Try again."); }
       if (!r.ok) throw new Error(d.error || "Server error");
+      await sbIncrementUsage();
       return (d.content?.map(b => b.type === "text" ? b.text : "").join("") || "").trim();
     }
     const modelInfo = availModels.find(m => m.id === aiModel);
@@ -326,7 +341,7 @@ Generate the Suno V5 Lyrics field content now.`;
       const aiResult = await callAI(sysPrompt, userMsg);
       setResult(aiResult);
       setEditMode(false);
-      addToHistory(aiResult, useBYOK ? aiModel : "claude-sonnet-4-6");
+      await addToHistory(aiResult, useBYOK ? aiModel : "claude-sonnet-4-6");
     } catch (e) { setResult("Error: " + e.message); }
     setLoading(false);
   };
@@ -618,7 +633,7 @@ Generate the Suno V5 Lyrics field content now.`;
             {editMode ? (
               <textarea
                 value={result || preview}
-                onChange={e => { setResult(e.target.value); if (history.length > 0 && history[0].rating === null) { const u = [{ ...history[0], prompt: e.target.value, edits: { ...history[0].edits, final: e.target.value, edited: true } }, ...history.slice(1)]; saveHistory(u); } }}
+                onChange={e => { const v=e.target.value; setResult(v); if (history.length > 0 && history[0].rating === null) { const u = [{ ...history[0], prompt: v, edits: { ...history[0].edits, final: v, edited: true } }, ...history.slice(1)]; saveHistory(u); if(history[0].sbId)sbUpdate('lyrics_history',`id=eq.${history[0].sbId}`,{edit_final:v,edited:true,prompt:v}); } }}
                 style={{
                   flex: 1, background: "#08080d", border: "1px solid #1a1a24", borderRadius: 5,
                   padding: 12, fontSize: 11, lineHeight: 1.8, color: "#c8c8d4",
