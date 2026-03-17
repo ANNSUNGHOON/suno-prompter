@@ -24,7 +24,8 @@ export default function App() {
       </div>
 
       {/* Content */}
-      {tab === 'style' ? <StylePrompter /> : <LyricsPrompter />}
+      <div style={{ display: tab === 'style' ? 'block' : 'none' }}><StylePrompter /></div>
+      <div style={{ display: tab === 'lyrics' ? 'block' : 'none' }}><LyricsPrompter /></div>
     </div>
   )
 }

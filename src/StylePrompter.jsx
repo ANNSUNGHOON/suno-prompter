@@ -53,6 +53,28 @@ export default function StylePrompter(){
   const[fusionWeights,setFusionWeights]=useState([65,35]);
   const[showApiPanel,setShowApiPanel]=useState(false);
   const[showHistory,setShowHistory]=useState(false);
+  const[analysisFile,setAnalysisFile]=useState(null);
+  const[analysisResult,setAnalysisResult]=useState(null);
+  const[analyzing,setAnalyzing]=useState(false);
+  const ANALYZER_URL='https://web-production-53cf6.up.railway.app';
+
+  const analyzeAudio=async()=>{
+    if(!analysisFile||!performance)return;
+    setAnalyzing(true);setAnalysisResult(null);
+    try{
+      const fd=new FormData();
+      fd.append('file',analysisFile);
+      fd.append('prompt',editMode&&combinedEdit?combinedEdit:fullPrompt);
+      fd.append('prompt_type','style');
+      fd.append('ip',getIP());
+      if(history.length>0&&history[0].sbId)fd.append('prompt_id',String(history[0].sbId));
+      const r=await fetch(`${ANALYZER_URL}/analyze`,{method:'POST',body:fd});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.detail||'Analysis failed');
+      setAnalysisResult(d);
+    }catch(e){setAnalysisResult({error:e.message});}
+    finally{setAnalyzing(false);}
+  };
 
   // History + Rating system
   const loadHistory=()=>{try{const s=localStorage.getItem("suno_style_history");return s?JSON.parse(s):[];}catch{return[];}};
@@ -517,6 +539,48 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
           )}
 
           <div style={{fontSize:8,color:"#222",lineHeight:1.5}}>Full: Foundation (DB) + Performance (Claude AI, editable). Compact: weight-sorted tags. 1-2 genres max.</div>
+
+          {/* Audio Analysis */}
+          {performance&&(
+            <div style={{background:"#0a0a14",borderRadius:6,padding:14,border:"1px solid #1a1a2e",marginTop:10}}>
+              <div style={{fontSize:9,color:"#8b5cf6",textTransform:"uppercase",fontWeight:700,marginBottom:8}}>🎵 Suno Result Analysis</div>
+              <div style={{fontSize:9,color:"#555",marginBottom:8}}>Upload your Suno mp3 to analyze how well it matched the prompt.</div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <input type="file" accept="audio/*" onChange={e=>setAnalysisFile(e.target.files?.[0]||null)} style={{fontSize:9,color:"#888",flex:1}}/>
+                <button onClick={analyzeAudio} disabled={!analysisFile||analyzing} style={{background:analysisFile&&!analyzing?"#8b5cf6":"#333",color:"#fff",border:"none",borderRadius:4,padding:"6px 14px",fontSize:9,fontWeight:700,cursor:analysisFile&&!analyzing?"pointer":"not-allowed",fontFamily:"inherit",opacity:analysisFile&&!analyzing?1:0.5}}>
+                  {analyzing?"Analyzing...":"Analyze"}
+                </button>
+              </div>
+              {analysisResult&&!analysisResult.error&&(
+                <div style={{marginTop:10}}>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                    {[["Genre",analysisResult.evaluation?.genre_accuracy],["BPM",analysisResult.evaluation?.bpm_accuracy],["Instruments",analysisResult.evaluation?.instrument_accuracy],["Mood",analysisResult.evaluation?.mood_accuracy],["Structure",analysisResult.evaluation?.structure_accuracy]].map(([label,score])=>(
+                      <div key={label} style={{background:"#111",borderRadius:4,padding:"4px 8px",fontSize:9,textAlign:"center",border:`1px solid ${score>=7?"#22c55e":score>=4?"#eab308":"#ef4444"}22`}}>
+                        <div style={{color:"#666",fontSize:7}}>{label}</div>
+                        <div style={{color:score>=7?"#22c55e":score>=4?"#eab308":"#ef4444",fontWeight:700}}>{score}/10</div>
+                      </div>
+                    ))}
+                    <div style={{background:"#111",borderRadius:4,padding:"4px 10px",fontSize:9,textAlign:"center",border:"1px solid #8b5cf622"}}>
+                      <div style={{color:"#666",fontSize:7}}>Overall</div>
+                      <div style={{color:"#8b5cf6",fontWeight:700,fontSize:12}}>{analysisResult.evaluation?.overall_score}</div>
+                    </div>
+                  </div>
+                  <div style={{fontSize:9,color:"#aaa",lineHeight:1.6,background:"#08080d",borderRadius:4,padding:8,border:"1px solid #1a1a24"}}>{analysisResult.evaluation?.summary}</div>
+                  {analysisResult.evaluation?.token_feedback&&(
+                    <div style={{marginTop:6}}>
+                      <div style={{fontSize:8,color:"#555",marginBottom:4}}>Token Effectiveness:</div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        {analysisResult.evaluation.token_feedback.map((t,i)=>(
+                          <span key={i} title={t.reason} style={{fontSize:8,padding:"2px 6px",borderRadius:3,cursor:"help",background:t.effectiveness==="high"?"#22c55e22":t.effectiveness==="medium"?"#eab30822":"#ef444422",color:t.effectiveness==="high"?"#22c55e":t.effectiveness==="medium"?"#eab308":"#ef4444",border:`1px solid ${t.effectiveness==="high"?"#22c55e":t.effectiveness==="medium"?"#eab308":"#ef4444"}33`}}>{t.token}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {analysisResult?.error&&<div style={{color:"#ef4444",fontSize:9,marginTop:6}}>{analysisResult.error}</div>}
+            </div>
+          )}
         </div>
       </div>
     </div>
