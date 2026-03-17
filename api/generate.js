@@ -1,4 +1,4 @@
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT = 5;
 const memUsage = {};
 
 export default async function handler(req, res) {

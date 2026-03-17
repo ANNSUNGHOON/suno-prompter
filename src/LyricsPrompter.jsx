@@ -142,33 +142,40 @@ export default function LyricsPrompter() {
   const [analysisFile, setAnalysisFile] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
   const ANALYZER_URL = 'https://web-production-53cf6.up.railway.app';
 
   const analyzeAudio = async () => {
-    if (!analysisFile || !result) return;
+    if (!analysisFile) return;
+    const target = history.find(h => h.id === selectedHistoryId) || history[0];
+    if (!target) return;
+    markAnalyzed(target.id);
     setAnalyzing(true); setAnalysisResult(null);
     try {
       const fd = new FormData();
       fd.append('file', analysisFile);
-      fd.append('prompt', result);
+      const promptForAnalysis = target.edits?.edited ? target.edits.final : target.prompt;
+      fd.append('prompt', promptForAnalysis);
       fd.append('prompt_type', 'lyrics');
       fd.append('ip', getIP());
-      if (history.length > 0 && history[0].sbId) fd.append('prompt_id', String(history[0].sbId));
+      if (target.sbId) fd.append('prompt_id', String(target.sbId));
       const r = await fetch(`${ANALYZER_URL}/analyze`, { method: 'POST', body: fd });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Analysis failed');
       setAnalysisResult(d);
+      setAnalysisFile(null);
+      if (!useBYOK) setFreeRemaining(prev => prev + 1);
     } catch (e) { setAnalysisResult({ error: e.message }); }
     finally { setAnalyzing(false); }
   };
 
-  // History + Rating system
+  // History + Upload gate system
   const loadHistory = () => { try { const s = localStorage.getItem("suno_lyrics_history"); return s ? JSON.parse(s) : []; } catch { return []; } };
   const [history, setHistory] = useState(loadHistory);
-  const pendingRating = history.length > 0 && history[0].rating === null;
+  const pendingUpload = history.length > 0 && !history[0].analyzed;
   const saveHistory = (h) => { setHistory(h); try { localStorage.setItem("suno_lyrics_history", JSON.stringify(h.slice(0, 50))); } catch {} };
   const addToHistory = async (prompt, mdl) => {
-    const entry = { id: Date.now(), ts: new Date().toISOString(), genre, sections: sections.map(s => s.tag), isInst, model: mdl, prompt, rating: null,
+    const entry = { id: Date.now(), ts: new Date().toISOString(), genre, sections: sections.map(s => s.tag), isInst, model: mdl, prompt, analyzed: false,
       edits: { original: prompt, final: prompt, edited: false }, sbId: null
     };
     try {
@@ -178,21 +185,12 @@ export default function LyricsPrompter() {
     } catch {}
     saveHistory([entry, ...history]);
   };
-  const rateEntry = (id, rating) => {
-    const h = history.find(x => x.id === id);
-    saveHistory(history.map(x => x.id === id ? { ...x, rating } : x));
-    if (h?.sbId) sbUpdate('lyrics_history', `id=eq.${h.sbId}`, { rating });
-  };
-  const StarRating = ({ value, onChange, size = 14 }) => (
-    <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(s => (
-      <span key={s} onClick={() => onChange(s)} style={{ cursor: "pointer", fontSize: size, color: s <= value ? "#eab308" : "#333", transition: "color 0.1s" }}>{s <= value ? "★" : "☆"}</span>
-    ))}</div>
-  );
+  const markAnalyzed = (id) => { saveHistory(history.map(x => x.id === id ? { ...x, analyzed: true } : x)); };
 
   // Dual mode: Free (server proxy, 10/day) + BYOK (own key, unlimited)
   const [useBYOK, setUseBYOK] = useState(false);
-  const [freeRemaining, setFreeRemaining] = useState(10);
-  const LIMIT = 10;
+  const [freeRemaining, setFreeRemaining] = useState(5);
+  const LIMIT = 5;
   const sbGetUsage = async () => {
     try { const today = new Date().toISOString().slice(0, 10);
     const r = await fetch(`${SB_URL}/rate_limits?ip=eq.${getIP()}&date=eq.${today}&select=count`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } });
@@ -436,16 +434,15 @@ Generate the Suno V5 Lyrics field content now.`;
           </div>
           {history.length === 0 ? <div style={{ fontSize: 9, color: "#333", padding: 10, textAlign: "center" }}>No history yet</div> :
           history.map(h => (
-            <div key={h.id} style={{ background: "#08080d", borderRadius: 4, padding: "8px 10px", marginBottom: 4, border: `1px solid ${h.rating === null ? "#332800" : "#1a1a24"}` }}>
+            <div key={h.id} style={{ background: "#08080d", borderRadius: 4, padding: "8px 10px", marginBottom: 4, border: `1px solid ${!h.analyzed ? "#1a1040" : "#1a1a24"}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontSize: 9, color: "#888" }}>{h.genre} · {h.isInst ? "INST" : "VOCAL"} · {h.sections?.length} sections</span>
                 <span style={{ fontSize: 8, color: "#444" }}>{new Date(h.ts).toLocaleDateString()} {new Date(h.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
               </div>
               <div style={{ fontSize: 8, color: "#555", maxHeight: 40, overflow: "hidden", textOverflow: "ellipsis", marginBottom: 4 }}>{h.prompt?.slice(0, 150)}...</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <StarRating value={h.rating || 0} onChange={(r) => rateEntry(h.id, r)} size={12} />
-                {h.rating && <span style={{ fontSize: 8, color: "#eab308" }}>{h.rating}/5</span>}
-                {!h.rating && <span style={{ fontSize: 8, color: "#eab308" }}>unrated</span>}
+                {h.analyzed && <span style={{ fontSize: 8, color: "#22c55e" }}>✅ analyzed</span>}
+                {!h.analyzed && <span style={{ fontSize: 8, color: "#8b5cf6" }}>⏳ pending</span>}
                 {h.edits?.edited && <span style={{ fontSize: 7, color: "#f472b6", background: "#1a0a1e", padding: "1px 4px", borderRadius: 2 }}>edited</span>}
               </div>
             </div>
@@ -614,24 +611,20 @@ Generate the Suno V5 Lyrics field content now.`;
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}>
 
           {/* Generate Button */}
-          {pendingRating && (
-            <div style={{ background: "#1a1800", border: "1px solid #332800", borderRadius: 5, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: 10, color: "#eab308", fontWeight: 600 }}>⭐ Rate your previous prompt to continue</div>
-                <div style={{ fontSize: 8, color: "#555", marginTop: 2 }}>{history[0]?.genre} · {history[0]?.isInst ? "INST" : "VOCAL"} · {new Date(history[0]?.ts).toLocaleString()}</div>
-              </div>
-              <StarRating value={0} onChange={(r) => rateEntry(history[0].id, r)} size={20} />
+          {pendingUpload && !analysisResult && (
+            <div style={{ background: "#0d0a1a", border: "1px solid #2a1a4a", borderRadius: 5, padding: "10px 14px" }}>
+              <div style={{ fontSize: 10, color: "#8b5cf6", fontWeight: 600 }}>🎵 Upload your Suno mp3 → get analysis report + 1 bonus generate!</div>
             </div>
           )}
 
-          <button onClick={generate} disabled={loading || sections.length === 0 || pendingRating} style={{
-            background: loading ? "#222" : pendingRating ? "#1a1800" : "linear-gradient(135deg, #22d3ee, #06b6d4)",
-            backgroundImage: (loading || pendingRating) ? "none" : undefined,
-            color: loading ? "#666" : pendingRating ? "#eab308" : "#fff", border: "none", borderRadius: 6,
-            padding: "14px 0", fontSize: 13, fontWeight: 700, cursor: (loading || pendingRating) ? "default" : "pointer",
+          <button onClick={generate} disabled={loading || sections.length === 0} style={{
+            background: loading ? "#222" : "linear-gradient(135deg, #22d3ee, #06b6d4)",
+            backgroundImage: loading ? "none" : undefined,
+            color: loading ? "#666" : "#fff", border: "none", borderRadius: 6,
+            padding: "14px 0", fontSize: 13, fontWeight: 700, cursor: loading ? "default" : "pointer",
             fontFamily: "inherit", letterSpacing: 0.5
           }}>
-            {loading ? "⏳ GENERATING..." : pendingRating ? "⭐ Rate previous first" : `GENERATE ${isInst ? "INSTRUMENTAL" : "LYRICS"} PROMPT`}
+            {loading ? "⏳ GENERATING..." : `GENERATE ${isInst ? "INSTRUMENTAL" : "LYRICS"} PROMPT`}
           </button>
 
           {/* Preview / Result */}
@@ -704,10 +697,18 @@ Generate the Suno V5 Lyrics field content now.`;
           </div>
 
           {/* Audio Analysis */}
-          {result && (
+          {history.length > 0 && (
             <div style={{ background: "#0a0a14", borderRadius: 6, padding: 14, border: "1px solid #1a1a2e", marginTop: 10 }}>
               <div style={{ fontSize: 9, color: "#8b5cf6", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>🎵 Suno Result Analysis</div>
-              <div style={{ fontSize: 9, color: "#555", marginBottom: 8 }}>Upload your Suno mp3 to analyze how well it matched the prompt.</div>
+              <div style={{ fontSize: 9, color: "#555", marginBottom: 4 }}>Upload your Suno mp3 → get analysis report + 1 bonus generate!</div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 8, color: "#444", marginBottom: 3 }}>Which prompt was this mp3 generated from?</div>
+                <select value={selectedHistoryId || history[0]?.id || ""} onChange={e => { setSelectedHistoryId(Number(e.target.value)); setAnalysisResult(null); }} style={{ width: "100%", background: "#08080d", color: "#aaa", border: "1px solid #1a1a24", borderRadius: 4, padding: "6px 8px", fontSize: 9, fontFamily: "inherit" }}>
+                  {history.map(h => (
+                    <option key={h.id} value={h.id}>{h.genre} · {h.edits?.edited ? "✎ " : ""}{h.prompt?.slice(0, 60)}... · {new Date(h.ts).toLocaleString()}{h.analyzed ? " ✅" : ""}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="file" accept="audio/*" onChange={e => setAnalysisFile(e.target.files?.[0] || null)} style={{ fontSize: 9, color: "#888", flex: 1 }} />
                 <button onClick={analyzeAudio} disabled={!analysisFile || analyzing} style={{ background: analysisFile && !analyzing ? "#8b5cf6" : "#333", color: "#fff", border: "none", borderRadius: 4, padding: "6px 14px", fontSize: 9, fontWeight: 700, cursor: analysisFile && !analyzing ? "pointer" : "not-allowed", fontFamily: "inherit", opacity: analysisFile && !analyzing ? 1 : 0.5 }}>
