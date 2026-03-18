@@ -142,7 +142,8 @@ export default function StylePrompter(){
   const PROVIDERS={
     anthropic:{label:"Anthropic",placeholder:"sk-ant-xxx...",models:[{id:"claude-opus-4-6",n:"Opus 4.6"},{id:"claude-sonnet-4-6",n:"Sonnet 4.6"}]},
     openai:{label:"OpenAI",placeholder:"sk-xxx...",models:[{id:"gpt-5.4",n:"GPT-5.4"},{id:"gpt-5.3",n:"GPT-5.3"},{id:"gpt-4o",n:"GPT-4o"}]},
-    gemini:{label:"Gemini",placeholder:"AIzaSy...",models:[{id:"gemini-3.1-pro-preview",n:"3.1 Pro"},{id:"gemini-2.5-flash-lite",n:"2.5 Flash-Lite (Free)"}]}
+    gemini:{label:"Gemini (AI Studio)",placeholder:"AIzaSy...",models:[{id:"gemini-3.1-pro-preview",n:"3.1 Pro"},{id:"gemini-2.5-flash-lite",n:"2.5 Flash-Lite ⚡ Free"},{id:"gemini-2.5-flash",n:"2.5 Flash ⚡ Free"}]},
+    groq:{label:"Groq ⚡ Free",placeholder:"gsk_xxx...",models:[{id:"llama-3.3-70b-versatile",n:"Llama 3.3 70B ⚡"},{id:"llama-3.1-8b-instant",n:"Llama 3.1 8B ⚡"},{id:"gemma2-9b-it",n:"Gemma2 9B ⚡"},{id:"mixtral-8x7b-32768",n:"Mixtral 8x7B ⚡"}]}
   };
   const loadKeys=()=>{try{const s=localStorage.getItem("suno_api_keys");return s?JSON.parse(s):{};}catch{return{};}};
   const[apiKeys,setApiKeys]=useState(loadKeys);
@@ -180,6 +181,10 @@ export default function StylePrompter(){
       const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${key}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system_instruction:{parts:[{text:system}]},contents:[{role:"user",parts:[{text:userMsg}]}],generationConfig:{temperature:randomize,maxOutputTokens:1000}})});
       const d=await r.json();if(!r.ok)throw new Error(d.error?.message||"Gemini API error");
       return(d.candidates?.[0]?.content?.parts?.[0]?.text||"").trim();
+    }else if(modelInfo.provider==="groq"){
+      const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify({model:aiModel,max_tokens:1000,temperature:randomize,messages:[{role:"system",content:system},{role:"user",content:userMsg}]})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error?.message||"Groq API error");
+      return(d.choices?.[0]?.message?.content||"").trim();
     }else{
       const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify({model:aiModel,max_tokens:1000,temperature:randomize,messages:[{role:"system",content:system},{role:"user",content:userMsg}]})});
       const d=await r.json();if(!r.ok)throw new Error(d.error?.message||"OpenAI API error");
@@ -311,35 +316,46 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:8,color:"#22c55e"}}>{useBYOK?`● BYOK: ${Object.keys(apiKeys).filter(p=>apiKeys[p]).map(p=>PROVIDERS[p].label).join(" + ")||"No key"}`:`● Free: Sonnet 4.6 · ${freeRemaining}/${LIMIT} today`}</span>
           <button onClick={()=>setShowHistory(!showHistory)} style={{background:showHistory?"#1a1a28":"transparent",border:"1px solid #1a1a28",borderRadius:4,padding:"4px 8px",color:"#666",fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>{history.filter(h=>!h.hidden).length>0?`📋 ${history.filter(h=>!h.hidden).length}`:""}</button>
-          <button onClick={()=>setShowApiPanel(!showApiPanel)} style={{background:showApiPanel?"#1a1a28":"transparent",border:"1px solid #1a1a28",borderRadius:4,padding:"4px 8px",color:"#666",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>⚙</button>
+          <button onClick={()=>setShowApiPanel(!showApiPanel)} style={{background:showApiPanel?"#1a1030":"transparent",border:showApiPanel?"1px solid #7c3aed":"1px solid #2a1a40",borderRadius:6,padding:"5px 12px",color:showApiPanel?"#a78bfa":"#7c3aed",fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600,transition:"all 0.2s"}}>🔑 API</button>
         </div>
       </div>
 
       {showApiPanel&&(
-        <div style={{background:"#0c0c12",border:"1px solid #1a1a28",borderRadius:6,padding:12,marginBottom:10,marginLeft:16,marginRight:16}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-            <span style={{fontSize:9,color:"#555"}}>Mode:</span>
-            <button onClick={()=>setUseBYOK(false)} style={{padding:"4px 12px",fontSize:9,borderRadius:4,border:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:600,background:!useBYOK?"#22c55e":"#1a1a28",color:!useBYOK?"#000":"#555"}}>Free (Sonnet 4.6 · {freeRemaining}/{LIMIT} daily)</button>
-            <button onClick={()=>setUseBYOK(true)} style={{padding:"4px 12px",fontSize:9,borderRadius:4,border:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:600,background:useBYOK?"#a78bfa":"#1a1a28",color:useBYOK?"#000":"#555"}}>BYOK (Unlimited)</button>
+        <div style={{background:"linear-gradient(135deg,#0c0c16,#12101e)",border:"1px solid #2a1a40",borderRadius:8,padding:16,marginBottom:12,marginLeft:16,marginRight:16,boxShadow:"0 4px 20px rgba(124,58,237,0.1)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <span style={{fontSize:12,fontWeight:700,color:"#a78bfa"}}>🔑 AI Provider Settings</span>
+            <span style={{fontSize:8,color:"#555",marginLeft:"auto"}}>Keys stored in browser only</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,padding:8,background:"#08080d",borderRadius:6}}>
+            <span style={{fontSize:9,color:"#888",fontWeight:600}}>Mode:</span>
+            <button onClick={()=>setUseBYOK(false)} style={{padding:"6px 14px",fontSize:9,borderRadius:6,border:!useBYOK?"1px solid #22c55e":"1px solid #1a1a28",cursor:"pointer",fontFamily:"inherit",fontWeight:600,background:!useBYOK?"#0a2010":"#0e0e14",color:!useBYOK?"#22c55e":"#555",transition:"all 0.2s"}}>🆓 Free · Sonnet 4.6 · {freeRemaining}/{LIMIT}</button>
+            <button onClick={()=>setUseBYOK(true)} style={{padding:"6px 14px",fontSize:9,borderRadius:6,border:useBYOK?"1px solid #a78bfa":"1px solid #1a1a28",cursor:"pointer",fontFamily:"inherit",fontWeight:600,background:useBYOK?"#1a1030":"#0e0e14",color:useBYOK?"#a78bfa":"#555",transition:"all 0.2s"}}>🔑 BYOK · Unlimited</button>
           </div>
           {useBYOK&&(<>
-            {Object.entries(PROVIDERS).map(([pid,cfg])=>(
-              <div key={pid} style={{display:"grid",gridTemplateColumns:"90px 1fr 60px 60px",gap:8,alignItems:"center",marginBottom:6}}>
-                <span style={{fontSize:9,color:apiKeys[pid]?"#22c55e":"#666",fontWeight:600}}>{cfg.label}</span>
+            {Object.entries(PROVIDERS).map(([pid,cfg])=>{
+              const isFree=cfg.label.includes("Free")||cfg.label.includes("⚡");
+              return(
+              <div key={pid} style={{display:"grid",gridTemplateColumns:"110px 1fr 60px",gap:8,alignItems:"center",marginBottom:6,padding:"6px 8px",background:apiKeys[pid]?"#0a1a10":"#08080d",borderRadius:6,border:apiKeys[pid]?"1px solid #1a3a1a":"1px solid #151520"}}>
+                <div>
+                  <span style={{fontSize:9,color:apiKeys[pid]?"#22c55e":"#888",fontWeight:600,display:"block"}}>{cfg.label}</span>
+                  {isFree&&!apiKeys[pid]&&<span style={{fontSize:7,color:"#7c3aed"}}>무료 토큰 제공</span>}
+                  {apiKeys[pid]&&<span style={{fontSize:7,color:"#555"}}>{cfg.models.length} models</span>}
+                </div>
                 {apiKeys[pid]?(
-                  <div style={{fontSize:9,color:"#555",padding:"6px 8px",background:"#08080d",borderRadius:4,border:"1px solid #1a1a28"}}>{"•".repeat(12)+apiKeys[pid].slice(-4)}</div>
+                  <div style={{fontSize:9,color:"#555",padding:"6px 8px",background:"#0e0e14",borderRadius:4,border:"1px solid #1a1a28",fontFamily:"monospace"}}>{"•".repeat(8)}...{apiKeys[pid].slice(-6)}</div>
                 ):(
-                  <input value={keyInputs[pid]||""} onChange={e=>setKeyInputs({...keyInputs,[pid]:e.target.value})} placeholder={cfg.placeholder} type="password" style={iS}/>
+                  <input value={keyInputs[pid]||""} onChange={e=>setKeyInputs({...keyInputs,[pid]:e.target.value})} placeholder={cfg.placeholder} type="password" style={{...iS,borderColor:isFree?"#2a1a40":"#1a1a28"}}/>
                 )}
                 {apiKeys[pid]?(
-                  <button onClick={()=>removeKey(pid)} style={{background:"transparent",border:"1px solid #2a1a1a",borderRadius:3,padding:"4px 8px",color:"#f87171",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
+                  <button onClick={()=>removeKey(pid)} style={{background:"transparent",border:"1px solid #3a1a1a",borderRadius:4,padding:"5px 8px",color:"#f87171",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Remove</button>
                 ):(
-                  <button onClick={()=>{if(keyInputs[pid]){saveKey(pid,keyInputs[pid]);setKeyInputs({...keyInputs,[pid]:""});if(!aiModel||!availModels.find(m=>m.id===aiModel))setAiModel(cfg.models[0].id);}}} disabled={!keyInputs[pid]} style={{background:keyInputs[pid]?"#a78bfa":"#1a1a28",border:"none",borderRadius:3,padding:"4px 8px",color:keyInputs[pid]?"#000":"#444",fontSize:8,cursor:keyInputs[pid]?"pointer":"default",fontFamily:"inherit",fontWeight:600}}>Save</button>
+                  <button onClick={()=>{if(keyInputs[pid]){saveKey(pid,keyInputs[pid]);setKeyInputs({...keyInputs,[pid]:""});if(!aiModel||!availModels.find(m=>m.id===aiModel))setAiModel(cfg.models[0].id);}}} disabled={!keyInputs[pid]} style={{background:keyInputs[pid]?"#a78bfa":"#1a1a28",border:"none",borderRadius:4,padding:"5px 8px",color:keyInputs[pid]?"#000":"#444",fontSize:8,cursor:keyInputs[pid]?"pointer":"default",fontFamily:"inherit",fontWeight:600}}>Save</button>
                 )}
-                <span style={{fontSize:7,color:"#333"}}>{apiKeys[pid]?`${cfg.models.length} models`:""}</span>
               </div>
-            ))}
-            <div style={{fontSize:8,color:"#333",marginTop:4}}>Your keys are stored in browser only. Never sent to our servers.</div>
+            );})}
+            <div style={{fontSize:8,color:"#555",marginTop:8,padding:"6px 8px",background:"#08080d",borderRadius:4,lineHeight:1.6}}>
+              💡 <strong style={{color:"#a78bfa"}}>무료 키 발급:</strong> <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style={{color:"#7c3aed",textDecoration:"underline"}}>Groq</a> · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style={{color:"#7c3aed",textDecoration:"underline"}}>Gemini AI Studio</a> — 30초면 발급 완료, 무제한 사용 가능
+            </div>
           </>)}
         </div>
       )}
