@@ -143,7 +143,7 @@ export default function StylePrompter(){
     anthropic:{label:"Anthropic",placeholder:"sk-ant-xxx...",models:[{id:"claude-opus-4-6",n:"Opus 4.6"},{id:"claude-sonnet-4-6",n:"Sonnet 4.6"}]},
     openai:{label:"OpenAI",placeholder:"sk-xxx...",models:[{id:"gpt-5.4",n:"GPT-5.4"},{id:"gpt-5.3",n:"GPT-5.3"},{id:"gpt-4o",n:"GPT-4o"}]},
     gemini:{label:"Gemini (AI Studio)",placeholder:"AIzaSy...",models:[{id:"gemini-3.1-pro-preview",n:"3.1 Pro"},{id:"gemini-2.5-flash-lite",n:"2.5 Flash-Lite ⚡ Free"},{id:"gemini-2.5-flash",n:"2.5 Flash ⚡ Free"}]},
-    groq:{label:"Groq ⚡ Free",placeholder:"gsk_xxx...",models:[{id:"llama-3.3-70b-versatile",n:"Llama 3.3 70B ⚡"},{id:"openai/gpt-oss-120b",n:"GPT-OSS 120B ⚡"},{id:"qwen-qwq-32b",n:"Qwen QWQ 32B ⚡"},{id:"deepseek-r1-distill-llama-70b",n:"DeepSeek R1 70B ⚡"}]}
+    groq:{label:"Groq ⚡ Free",placeholder:"gsk_xxx...",models:[{id:"llama-3.3-70b-versatile",n:"Llama 3.3 70B ⚡"},{id:"openai/gpt-oss-120b",n:"GPT-OSS 120B ⚡"}]}
   };
   const loadKeys=()=>{try{const s=localStorage.getItem("suno_api_keys");return s?JSON.parse(s):{};}catch{return{};}};
   const[apiKeys,setApiKeys]=useState(loadKeys);
