@@ -187,6 +187,16 @@ export default function LyricsPrompter() {
   };
   const markAnalyzed = (id) => { saveHistory(history.map(x => x.id === id ? { ...x, analyzed: true } : x)); };
   const hideEntry = (id) => { saveHistory(history.map(x => x.id === id ? { ...x, hidden: true } : x)); };
+  const restoreEntry = (h) => {
+    if (h.genre) setGenre(h.genre);
+    if (h.sections?.length > 0 && STRUCTURES[h.genre]) {
+      setSections(STRUCTURES[h.genre].map(s => ({ ...s, id: uid(), bars: SECTION_BARS[s.tag] || 8 })));
+    }
+    setIsInst(!!h.isInst);
+    const p = h.edits?.edited ? h.edits.final : h.prompt;
+    if (p) { setResult(p); setEditMode(true); }
+    setShowHistory(false);
+  };
 
   // Dual mode: Free (server proxy, 10/day) + BYOK (own key, unlimited)
   const [useBYOK, setUseBYOK] = useState(false);
@@ -202,7 +212,13 @@ export default function LyricsPrompter() {
     await sbUpsert('rate_limits', { ip: getIP(), date: today, count: current + 1 });
     setFreeRemaining(Math.max(0, LIMIT - current - 1)); } catch {}
   };
-  useEffect(() => { fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => { _userIP = d.ip; return sbGetUsage(); }).then(used => setFreeRemaining(Math.max(0, LIMIT - used))).catch(() => {}); }, []);
+  useEffect(() => { fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => { _userIP = d.ip; return sbGetUsage(); }).then(used => setFreeRemaining(Math.max(0, LIMIT - used))).catch(() => {});
+    const local = loadHistory();
+    if (local.length === 0) {
+      fetch(`${SB_URL}/lyrics_history?ip=eq.${getIP()}&order=created_at.desc&limit=50&select=id,created_at,genre,sections,is_inst,model,prompt,edit_original,edit_final,edited,rating`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } })
+        .then(r => r.json()).then(rows => { if (rows?.length > 0) { const recovered = rows.map(r => ({ id: r.id, ts: r.created_at, genre: r.genre, sections: r.sections || [], isInst: r.is_inst, model: r.model, prompt: r.prompt, analyzed: !!r.rating, hidden: false, edits: { original: r.edit_original || r.prompt, final: r.edit_final || r.prompt, edited: !!r.edited }, sbId: r.id })); saveHistory(recovered); } }).catch(() => {});
+    }
+  }, []);
   const PROVIDERS = {
     anthropic: { label: "Anthropic", placeholder: "sk-ant-xxx...", models: [{ id: "claude-opus-4-6", n: "Opus 4.6" }, { id: "claude-sonnet-4-6", n: "Sonnet 4.6" }] },
     openai: { label: "OpenAI", placeholder: "sk-xxx...", models: [{ id: "gpt-5.4", n: "GPT-5.4" }, { id: "gpt-5.3", n: "GPT-5.3" }, { id: "gpt-4o", n: "GPT-4o" }] },
@@ -445,7 +461,8 @@ Generate the Suno V5 Lyrics field content now.`;
                 {h.analyzed && <span style={{ fontSize: 8, color: "#22c55e" }}>✅ analyzed</span>}
                 {!h.analyzed && <span style={{ fontSize: 8, color: "#8b5cf6" }}>⏳ pending</span>}
                 {h.edits?.edited && <span style={{ fontSize: 7, color: "#f472b6", background: "#1a0a1e", padding: "1px 4px", borderRadius: 2 }}>edited</span>}
-                <span onClick={() => hideEntry(h.id)} style={{ fontSize: 8, color: "#555", cursor: "pointer", marginLeft: "auto" }} title="Delete this entry">✕</span>
+                <span onClick={() => restoreEntry(h)} style={{ fontSize: 8, color: "#22d3ee", cursor: "pointer", marginLeft: "auto" }} title="Restore this prompt">↩</span>
+                <span onClick={() => hideEntry(h.id)} style={{ fontSize: 8, color: "#555", cursor: "pointer" }} title="Hide this entry">✕</span>
               </div>
             </div>
           ))}
