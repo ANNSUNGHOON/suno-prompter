@@ -186,6 +186,7 @@ export default function LyricsPrompter() {
     saveHistory([entry, ...history]);
   };
   const markAnalyzed = (id) => { saveHistory(history.map(x => x.id === id ? { ...x, analyzed: true } : x)); };
+  const deleteEntry = (id) => { saveHistory(history.filter(x => x.id !== id)); if (selectedHistoryId === id) setSelectedHistoryId(null); };
 
   // Dual mode: Free (server proxy, 10/day) + BYOK (own key, unlimited)
   const [useBYOK, setUseBYOK] = useState(false);
@@ -391,7 +392,7 @@ Generate the Suno V5 Lyrics field content now.`;
         <h1 style={{ fontSize: 17, fontWeight: 700, color: "#f472b6", letterSpacing: -0.5 }}>SUNO LYRICS PROMPTER</h1>
         <span style={{ fontSize: 10, color: "#444" }}>v3 · Style→Structure · BYOK</span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 8, color: "#22c55e" }}>{useBYOK ? `● BYOK: ${Object.keys(apiKeys).filter(p => apiKeys[p]).map(p => PROVIDERS[p].label).join(" + ") || "No key"}` : `● Free: Sonnet 4.6 · ${freeRemaining}/10 today`}</span>
+          <span style={{ fontSize: 8, color: "#22c55e" }}>{useBYOK ? `● BYOK: ${Object.keys(apiKeys).filter(p => apiKeys[p]).map(p => PROVIDERS[p].label).join(" + ") || "No key"}` : `● Free: Sonnet 4.6 · ${freeRemaining}/${LIMIT} today`}</span>
           <button onClick={() => setShowHistory(!showHistory)} style={{ background: showHistory ? "#1a1a28" : "transparent", border: "1px solid #1a1a28", borderRadius: 4, padding: "4px 8px", color: "#666", fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{history.length > 0 ? `📋 ${history.length}` : ""}</button>
           <button onClick={() => setShowApiPanel(!showApiPanel)} style={{ background: showApiPanel ? "#1a1a28" : "transparent", border: "1px solid #1a1a28", borderRadius: 4, padding: "4px 8px", color: "#666", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>⚙</button>
         </div>
@@ -401,7 +402,7 @@ Generate the Suno V5 Lyrics field content now.`;
         <div style={{ background: "#0c0c12", border: "1px solid #1a1a28", borderRadius: 6, padding: 12, marginBottom: 10, marginLeft: 16, marginRight: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <span style={{ fontSize: 9, color: "#555" }}>Mode:</span>
-            <button onClick={() => setUseBYOK(false)} style={{ padding: "4px 12px", fontSize: 9, borderRadius: 4, border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, background: !useBYOK ? "#22c55e" : "#1a1a28", color: !useBYOK ? "#000" : "#555" }}>Free (Sonnet 4.6 · {freeRemaining}/10 daily)</button>
+            <button onClick={() => setUseBYOK(false)} style={{ padding: "4px 12px", fontSize: 9, borderRadius: 4, border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, background: !useBYOK ? "#22c55e" : "#1a1a28", color: !useBYOK ? "#000" : "#555" }}>Free (Sonnet 4.6 · {freeRemaining}/{LIMIT} daily)</button>
             <button onClick={() => setUseBYOK(true)} style={{ padding: "4px 12px", fontSize: 9, borderRadius: 4, border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, background: useBYOK ? "#f472b6" : "#1a1a28", color: useBYOK ? "#000" : "#555" }}>BYOK (Unlimited)</button>
           </div>
           {useBYOK && (<>
@@ -444,6 +445,7 @@ Generate the Suno V5 Lyrics field content now.`;
                 {h.analyzed && <span style={{ fontSize: 8, color: "#22c55e" }}>✅ analyzed</span>}
                 {!h.analyzed && <span style={{ fontSize: 8, color: "#8b5cf6" }}>⏳ pending</span>}
                 {h.edits?.edited && <span style={{ fontSize: 7, color: "#f472b6", background: "#1a0a1e", padding: "1px 4px", borderRadius: 2 }}>edited</span>}
+                <span onClick={() => deleteEntry(h.id)} style={{ fontSize: 8, color: "#555", cursor: "pointer", marginLeft: "auto" }} title="Delete this entry">✕</span>
               </div>
             </div>
           ))}
