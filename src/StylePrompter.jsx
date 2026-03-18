@@ -125,15 +125,19 @@ export default function StylePrompter(){
   const sbIncrementUsage=async()=>{
     try{const today=new Date().toISOString().slice(0,10);const current=await sbGetUsage();
     await sbUpsert('rate_limits',{ip:getIP(),date:today,count:current+1});
-    setFreeRemaining(Math.max(0,LIMIT-current-1));}catch{}
+    setFreeRemaining(Math.max(0,LIMIT-current-1));
+    window.dispatchEvent(new Event('usage-changed'));}catch{}
   };
   useEffect(()=>{fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{_userIP=d.ip;return sbGetUsage();}).then(used=>setFreeRemaining(Math.max(0,LIMIT-used))).catch(()=>{});
+    const syncUsage=()=>{if(getIP())sbGetUsage().then(used=>setFreeRemaining(Math.max(0,LIMIT-used))).catch(()=>{});};
+    window.addEventListener('usage-changed',syncUsage);
     // Recover history from Supabase if localStorage is empty
     const local=loadHistory();
     if(local.length===0){
       fetch(`${SB_URL}/style_history?ip=eq.${getIP()}&order=created_at.desc&limit=50&select=id,created_at,genres,mode,model,instrumental,prompt,edit_original,edit_final,edited,rating`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`}})
         .then(r=>r.json()).then(rows=>{if(rows?.length>0){const recovered=rows.map(r=>({id:r.id,ts:r.created_at,genres:r.genres||[],mode:r.mode,model:r.model,prompt:r.prompt,instrumental:r.instrumental,analyzed:!!r.rating,hidden:false,edits:{original:r.edit_original||r.prompt,final:r.edit_final||r.prompt,edited:!!r.edited},sbId:r.id}));saveHistory(recovered);}}).catch(()=>{});
     }
+    return ()=>window.removeEventListener('usage-changed',syncUsage);
   },[]);
   const PROVIDERS={
     anthropic:{label:"Anthropic",placeholder:"sk-ant-xxx...",models:[{id:"claude-opus-4-6",n:"Opus 4.6"},{id:"claude-sonnet-4-6",n:"Sonnet 4.6"}]},
