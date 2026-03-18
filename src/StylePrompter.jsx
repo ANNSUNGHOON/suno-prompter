@@ -86,7 +86,7 @@ export default function StylePrompter(){
   // History + Upload gate system
   const loadHistory=()=>{try{const s=localStorage.getItem("suno_style_history");return s?JSON.parse(s):[];}catch{return[];}};
   const[history,setHistory]=useState(loadHistory);
-  const pendingUpload=history.length>0&&!history[0].analyzed;
+  const pendingUpload=history.length>0&&!history[0].analyzed&&!history[0].hidden;
   const saveHistory=(h)=>{setHistory(h);try{localStorage.setItem("suno_style_history",JSON.stringify(h.slice(0,50)));}catch{}};
   const addToHistory=async(prompt,genres,mdl)=>{
     const entry={id:Date.now(),ts:new Date().toISOString(),genres:genres.map(g=>g.n),mode,model:mdl,prompt,instrumental,analyzed:false,
@@ -100,7 +100,7 @@ export default function StylePrompter(){
     saveHistory([entry,...history]);
   };
   const markAnalyzed=(id)=>{saveHistory(history.map(x=>x.id===id?{...x,analyzed:true}:x));};
-  const deleteEntry=(id)=>{saveHistory(history.filter(x=>x.id!==id));if(selectedHistoryId===id)setSelectedHistoryId(null);};
+  const hideEntry=(id)=>{saveHistory(history.map(x=>x.id===id?{...x,hidden:true}:x));};
 
   // Dual mode: Free (server proxy, 10/day) + BYOK (own key, unlimited)
   const[useBYOK,setUseBYOK]=useState(false);
@@ -278,7 +278,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
         <span style={{fontSize:10,color:"#333"}}>v3 · 3-Genre Fusion · BYOK</span>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:8,color:"#22c55e"}}>{useBYOK?`● BYOK: ${Object.keys(apiKeys).filter(p=>apiKeys[p]).map(p=>PROVIDERS[p].label).join(" + ")||"No key"}`:`● Free: Sonnet 4.6 · ${freeRemaining}/${LIMIT} today`}</span>
-          <button onClick={()=>setShowHistory(!showHistory)} style={{background:showHistory?"#1a1a28":"transparent",border:"1px solid #1a1a28",borderRadius:4,padding:"4px 8px",color:"#666",fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>{history.length>0?`📋 ${history.length}`:""}</button>
+          <button onClick={()=>setShowHistory(!showHistory)} style={{background:showHistory?"#1a1a28":"transparent",border:"1px solid #1a1a28",borderRadius:4,padding:"4px 8px",color:"#666",fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>{history.filter(h=>!h.hidden).length>0?`📋 ${history.filter(h=>!h.hidden).length}`:""}</button>
           <button onClick={()=>setShowApiPanel(!showApiPanel)} style={{background:showApiPanel?"#1a1a28":"transparent",border:"1px solid #1a1a28",borderRadius:4,padding:"4px 8px",color:"#666",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>⚙</button>
         </div>
       </div>
@@ -318,8 +318,8 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
             <span style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Prompt History ({history.length})</span>
             {history.length>0&&<button onClick={()=>{if(confirm("Clear all history?"))saveHistory([]);}} style={{background:"transparent",border:"1px solid #2a1a1a",borderRadius:3,padding:"2px 8px",color:"#f87171",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Clear All</button>}
           </div>
-          {history.length===0?<div style={{fontSize:9,color:"#333",padding:10,textAlign:"center"}}>No history yet</div>:
-          history.map(h=>(
+          {history.filter(h=>!h.hidden).length===0?<div style={{fontSize:9,color:"#333",padding:10,textAlign:"center"}}>No history yet</div>:
+          history.filter(h=>!h.hidden).map(h=>(
             <div key={h.id} style={{background:"#08080d",borderRadius:4,padding:"8px 10px",marginBottom:4,border:`1px solid ${!h.analyzed?"#1a1040":"#1a1a24"}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                 <span style={{fontSize:9,color:"#888"}}>{h.genres?.join(" × ")} · {h.instrumental?"INST":"VOCAL"} · {h.model?.split("-").slice(-2).join(" ")}</span>
@@ -330,7 +330,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                 {h.analyzed&&<span style={{fontSize:8,color:"#22c55e"}}>✅ analyzed</span>}
                 {!h.analyzed&&<span style={{fontSize:8,color:"#8b5cf6"}}>⏳ pending</span>}
                 {h.edits?.edited&&<span style={{fontSize:7,color:"#eab308",background:"#1a1800",padding:"1px 4px",borderRadius:2}}>edited</span>}
-                <span onClick={()=>deleteEntry(h.id)} style={{fontSize:8,color:"#555",cursor:"pointer",marginLeft:"auto"}} title="Delete this entry">✕</span>
+                <span onClick={()=>hideEntry(h.id)} style={{fontSize:8,color:"#555",cursor:"pointer",marginLeft:"auto"}} title="Delete this entry">✕</span>
               </div>
             </div>
           ))}
