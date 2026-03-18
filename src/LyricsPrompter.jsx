@@ -431,7 +431,7 @@ Generate the Suno V5 Lyrics field content now.`;
         <div style={{ background: "#0c0c12", border: "1px solid #1a1a28", borderRadius: 6, padding: 12, marginBottom: 10, marginLeft: 16, marginRight: 16, maxHeight: 250, overflowY: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: 1 }}>Prompt History ({history.length})</span>
-            {history.length > 0 && <button onClick={() => { if (confirm("Clear all history?")) saveHistory([]); }} style={{ background: "transparent", border: "1px solid #2a1a1a", borderRadius: 3, padding: "2px 8px", color: "#f87171", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>Clear All</button>}
+            {history.filter(h => !h.hidden).length > 0 && <button onClick={() => { if (confirm("Hide all from view?")) saveHistory(history.map(h => ({ ...h, hidden: true }))); }} style={{ background: "transparent", border: "1px solid #2a1a1a", borderRadius: 3, padding: "2px 8px", color: "#f87171", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>Clear All</button>}
           </div>
           {history.filter(h => !h.hidden).length === 0 ? <div style={{ fontSize: 9, color: "#333", padding: 10, textAlign: "center" }}>No history yet</div> :
           history.filter(h => !h.hidden).map(h => (
