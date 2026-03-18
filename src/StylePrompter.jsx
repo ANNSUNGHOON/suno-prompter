@@ -250,6 +250,16 @@ CRITICAL RULES:
 - Reference specific sonic qualities: transient character, frequency balance, stereo width, reverb tail length
 ${instrumental ? "- THIS IS INSTRUMENTAL ONLY. Do NOT mention any vocals, singing, vocal chops, voice, rapper, singer, choir, or any vocal-related element whatsoever. Focus entirely on instruments, textures, rhythm, and production." : ""}
 
+═══ SUNO TOKEN PRIORITY RULES (from empirical testing) ═══
+Suno has a hidden priority hierarchy. AVOID creating conflicting tokens:
+1. Genre archetype energy OVERRIDES explicit BPM. Do NOT pair slow BPM with inherently fast genres (e.g. "trailer music" + "85 BPM" will conflict — trailer always wins at 120+).
+2. Energy tokens OVERRIDE mood tokens. "energetic" will cancel out "gentle/airy/organic". Choose one energy direction.
+3. Mainstream genre templates OVERRIDE sub-genre specifics. "Latin" → salsa (not bossa nova). If you want bossa nova, do NOT also say "energetic".
+4. Suno IGNORES "dark/gritty/menacing" for genres that aren't inherently dark. "dark house" → melodic house. Only inherently dark genres (doom metal, industrial) produce dark output.
+5. Suno IGNORES specific instrument requests (nylon guitar, gayageum, Rhodes) — it substitutes generic synths. Describe the TEXTURE instead of the instrument name.
+6. Suno FOLLOWS: specific BPM numbers (~98% accuracy when no genre conflict), key/scale, "no vocals", negative prompts (-pop, -country).
+7. If the user's mood/direction conflicts with the genre's natural energy, prioritize the genre's energy and adjust the description to be COMPATIBLE, or warn the user.
+
 OUTPUT: Just the performance description. No labels, no markdown, no quotation marks.`;
     const userMsg=`Genre data:\n${JSON.stringify(genreInfo,null,2)}\n\nTarget BPM: ${targetBpm}\n${mood?`Mood: ${mood}`:""}\n${vocal&&!instrumental?`Vocal: ${vocal}`:""}\n${instrumental?"INSTRUMENTAL ONLY — no vocals of any kind.":""}\n${extra?`Direction: ${extra}`:""}\n\nWrite the Performance description.`;
     try{

@@ -349,7 +349,8 @@ RULES:
 11. Between sections, leave blank lines for breathing room.
 12. For Drop/Climax sections, add (full energy; all instruments) style cues.
 13. For Breakdown/Break, add (strip back; minimal) style cues.
-14. Do NOT duplicate what's already in the Style prompt. Focus on structural directives that the Style field can't express.`
+14. Do NOT duplicate what's already in the Style prompt. Focus on structural directives that the Style field can't express.
+15. SUNO AWARENESS: Suno's energy interpretation follows genre archetype over metatags. If the Style prompt implies high energy (e.g. trailer music, EDM), don't fight it with [Energy: very low] tags — work WITH the genre's natural energy curve.`
       : `You are an expert Suno V5 lyrics writer. Write complete lyrics with metatags for the Suno Lyrics field.
 
 ${stylePrompt ? `CRITICAL CONTEXT: The user has already crafted a Style prompt (pasted below). Your lyrics must MATCH the sonic character described in that Style prompt. Extract genre, mood, energy level, and aesthetic cues from it. If the Style prompt says "dark, aggressive, 808 bass", don't write cheerful pop lyrics. The Style defines the sound; you define the words and structure that ride on top of it.` : ""}
@@ -366,7 +367,8 @@ RULES:
 9. Keep total under 3000 characters.
 10. Each section should feel like it has a clear ROLE in the song's narrative arc.
 11. The chorus should be simpler and more repetitive than the verse.
-12. Do NOT include any style/genre/instrument descriptions in the lyrics — those belong in the Style field only.`;
+12. Do NOT include any style/genre/instrument descriptions in the lyrics — those belong in the Style field only.
+13. SUNO AWARENESS: Match the emotional register of your lyrics to the genre's natural character. Suno ignores "dark" mood for genres that aren't inherently dark — if the Style prompt is bright/melodic, write lyrics that match that energy rather than fighting it.`;
 
     const userMsg = `${stylePrompt ? `STYLE PROMPT (already set in Suno Style field — DO NOT repeat this content):\n${stylePrompt}\n\n` : ""}Genre: ${genre}
 Mode: ${isInst ? "INSTRUMENTAL (no vocals, metatags only)" : "VOCAL (lyrics + metatags)"}
