@@ -150,8 +150,8 @@ let _userIP='unknown';
 const getIP=()=>_userIP;
 
 export default function LyricsPrompter() {
-  const [genre, setGenre] = useState("EDM / Electronic");
-  const [sections, setSections] = useState(() => STRUCTURES["EDM / Electronic"].map(s => ({ ...s, id: uid(), bars: SECTION_BARS[s.tag] || 8 })));
+  const [genre, setGenre] = useState("HOUSE");
+  const [sections, setSections] = useState(() => STRUCTURES["HOUSE"].map(s => ({ ...s, id: uid(), bars: SECTION_BARS[s.tag] || 8 })));
   const [isInst, setIsInst] = useState(true);
   const [bpm, setBpm] = useState(128);
   const [mood, setMood] = useState("");
