@@ -1,77 +1,105 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-// ── Genre Structure Templates ──
+// ── Genre Structure Templates (v5: 23 supergenres) ──
+// Reusable base templates
+const _EDM = [
+  { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
+  { id: "s2", tag: "Build-Up", energy: "Medium", vocal: "", role: "lift" },
+  { id: "s3", tag: "Drop", energy: "High", vocal: "", role: "payoff" },
+  { id: "s4", tag: "Breakdown", energy: "Low", vocal: "", role: "contrast" },
+  { id: "s5", tag: "Build-Up", energy: "Medium", vocal: "", role: "lift" },
+  { id: "s6", tag: "Drop", energy: "High", vocal: "", role: "payoff" },
+  { id: "s7", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+const _VERSE_CHORUS = [
+  { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
+  { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s3", tag: "Pre-Chorus", energy: "Medium", vocal: "", role: "lift" },
+  { id: "s4", tag: "Chorus", energy: "High", vocal: "", role: "payoff" },
+  { id: "s5", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s6", tag: "Pre-Chorus", energy: "Medium", vocal: "", role: "lift" },
+  { id: "s7", tag: "Chorus", energy: "High", vocal: "", role: "payoff" },
+  { id: "s8", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
+  { id: "s9", tag: "Final Chorus", energy: "High", vocal: "", role: "payoff" },
+  { id: "s10", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+const _HIPHOP = [
+  { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
+  { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "Rapped", role: "setup" },
+  { id: "s3", tag: "Hook", energy: "High", vocal: "Sung", role: "payoff" },
+  { id: "s4", tag: "Verse 2", energy: "Medium", vocal: "Rapped", role: "setup" },
+  { id: "s5", tag: "Hook", energy: "High", vocal: "Sung", role: "payoff" },
+  { id: "s6", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
+  { id: "s7", tag: "Hook", energy: "High", vocal: "Sung", role: "payoff" },
+  { id: "s8", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+const _JAZZ = [
+  { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
+  { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "Smooth", role: "setup" },
+  { id: "s3", tag: "Chorus", energy: "Medium", vocal: "Soulful", role: "payoff" },
+  { id: "s4", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s5", tag: "Solo", energy: "Medium", vocal: "", role: "contrast" },
+  { id: "s6", tag: "Chorus", energy: "Medium", vocal: "Soulful", role: "payoff" },
+  { id: "s7", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+const _FOLK = [
+  { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
+  { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s3", tag: "Chorus", energy: "Medium", vocal: "", role: "payoff" },
+  { id: "s4", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s5", tag: "Chorus", energy: "Medium", vocal: "", role: "payoff" },
+  { id: "s6", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
+  { id: "s7", tag: "Final Chorus", energy: "High", vocal: "", role: "payoff" },
+  { id: "s8", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+const _CINEMATIC = [
+  { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
+  { id: "s2", tag: "Theme", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s3", tag: "Build-Up", energy: "Medium", vocal: "", role: "lift" },
+  { id: "s4", tag: "Climax", energy: "High", vocal: "", role: "payoff" },
+  { id: "s5", tag: "Resolution", energy: "Low", vocal: "", role: "contrast" },
+  { id: "s6", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+const _METAL = [
+  { id: "s1", tag: "Intro", energy: "Medium", vocal: "", role: "setup" },
+  { id: "s2", tag: "Verse 1", energy: "High", vocal: "Growled", role: "setup" },
+  { id: "s3", tag: "Pre-Chorus", energy: "Medium→High", vocal: "", role: "lift" },
+  { id: "s4", tag: "Chorus", energy: "High", vocal: "Powerful", role: "payoff" },
+  { id: "s5", tag: "Verse 2", energy: "High", vocal: "Growled", role: "setup" },
+  { id: "s6", tag: "Chorus", energy: "High", vocal: "Powerful", role: "payoff" },
+  { id: "s7", tag: "Guitar Solo", energy: "High", vocal: "", role: "contrast" },
+  { id: "s8", tag: "Final Chorus", energy: "High", vocal: "Powerful", role: "payoff" },
+  { id: "s9", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
+];
+
 const STRUCTURES = {
-  "EDM / Electronic": [
-    { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
-    { id: "s2", tag: "Build-Up", energy: "Medium", vocal: "", role: "lift" },
-    { id: "s3", tag: "Drop", energy: "High", vocal: "", role: "payoff" },
-    { id: "s4", tag: "Breakdown", energy: "Low", vocal: "", role: "contrast" },
-    { id: "s5", tag: "Build-Up", energy: "Medium", vocal: "", role: "lift" },
-    { id: "s6", tag: "Drop", energy: "High", vocal: "", role: "payoff" },
-    { id: "s7", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
-  "Hip-Hop / Rap": [
-    { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
-    { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "Rapped", role: "setup" },
-    { id: "s3", tag: "Hook", energy: "High", vocal: "Sung", role: "payoff" },
-    { id: "s4", tag: "Verse 2", energy: "Medium", vocal: "Rapped", role: "setup" },
-    { id: "s5", tag: "Hook", energy: "High", vocal: "Sung", role: "payoff" },
-    { id: "s6", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
-    { id: "s7", tag: "Hook", energy: "High", vocal: "Sung", role: "payoff" },
-    { id: "s8", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
-  "Rock / Pop": [
-    { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
-    { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s3", tag: "Pre-Chorus", energy: "Medium", vocal: "", role: "lift" },
-    { id: "s4", tag: "Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s5", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s6", tag: "Pre-Chorus", energy: "Medium", vocal: "", role: "lift" },
-    { id: "s7", tag: "Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s8", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
-    { id: "s9", tag: "Final Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s10", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
-  "Cinematic / Ambient": [
-    { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
-    { id: "s2", tag: "Theme", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s3", tag: "Build-Up", energy: "Medium", vocal: "", role: "lift" },
-    { id: "s4", tag: "Climax", energy: "High", vocal: "", role: "payoff" },
-    { id: "s5", tag: "Resolution", energy: "Low", vocal: "", role: "contrast" },
-    { id: "s6", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
-  "K-Pop": [
-    { id: "s1", tag: "Intro", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "Melodic Rap", role: "setup" },
-    { id: "s3", tag: "Pre-Chorus", energy: "Medium", vocal: "", role: "lift" },
-    { id: "s4", tag: "Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s5", tag: "Post-Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s6", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s7", tag: "Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s8", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
-    { id: "s9", tag: "Final Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s10", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
-  "Jazz / Soul": [
-    { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
-    { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "Smooth", role: "setup" },
-    { id: "s3", tag: "Chorus", energy: "Medium", vocal: "Soulful", role: "payoff" },
-    { id: "s4", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s5", tag: "Solo", energy: "Medium", vocal: "", role: "contrast" },
-    { id: "s6", tag: "Chorus", energy: "Medium", vocal: "Soulful", role: "payoff" },
-    { id: "s7", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
-  "Folk / Country": [
-    { id: "s1", tag: "Intro", energy: "Low", vocal: "", role: "setup" },
-    { id: "s2", tag: "Verse 1", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s3", tag: "Chorus", energy: "Medium", vocal: "", role: "payoff" },
-    { id: "s4", tag: "Verse 2", energy: "Medium", vocal: "", role: "setup" },
-    { id: "s5", tag: "Chorus", energy: "Medium", vocal: "", role: "payoff" },
-    { id: "s6", tag: "Bridge", energy: "Low", vocal: "", role: "contrast" },
-    { id: "s7", tag: "Final Chorus", energy: "High", vocal: "", role: "payoff" },
-    { id: "s8", tag: "Outro", energy: "Low", vocal: "", role: "resolve" },
-  ],
+  // Electronic cluster
+  "HOUSE": _EDM,
+  "TECHNO": _EDM,
+  "TRANCE": _EDM,
+  "HARDCORE TECHNO": _EDM,
+  "DRUM 'N' BASS (D'N'B) / JUNGLE": _EDM,
+  "BREAKBEAT": _EDM,
+  "DOWNTEMPO / AMBIENT": _CINEMATIC,
+  // Rock cluster
+  "ROCK 'N' ROLL (R'N'R)": _VERSE_CHORUS,
+  "GOLDEN AGE / CLASSIC ROCK": _VERSE_CHORUS,
+  "ALTERNATIVE ROCK / INDIE": _VERSE_CHORUS,
+  "CONTEMPORARY ROCK": _VERSE_CHORUS,
+  "PUNK ROCK / NEW WAVE": _VERSE_CHORUS,
+  "HARDCORE PUNK": _METAL,
+  "HEAVY METAL": _METAL,
+  "INDUSTRIAL & GOTHIC": _METAL,
+  // Soul / Jazz / Blues cluster
+  "GOSPEL & PIONEERS": _JAZZ,
+  "BLUES": _JAZZ,
+  "JAZZ": _JAZZ,
+  "RHYTHM 'N' BLUES (R&B)": _JAZZ,
+  // Pop / Hip-Hop cluster
+  "POP MUSIC": _VERSE_CHORUS,
+  "RAP / HIP-HOP MUSIC": _HIPHOP,
+  "JAMAICAN (MUSIC) / REGGAE": _FOLK,
+  "COUNTRY": _FOLK,
   "Custom (Empty)": [],
 };
 
