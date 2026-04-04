@@ -402,10 +402,10 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                     <span style={{fontSize:10,fontWeight:isSel?600:400,color:isSel?"#a78bfa":"#c0c0c8"}}>{g.n}</span>
                     <span style={{fontSize:9,color:"#3a3a44"}}>{g.k}</span>
                   </div>
-                  <span style={{fontSize:8,color:"#3a3a44"}}>{g.bL}–{g.bH}</span>
+                  <span style={{fontSize:9,color:"#777"}}>{g.bL}–{g.bH}</span>
                 </div>
                 <div style={{display:"flex",gap:3,marginTop:3,flexWrap:"wrap"}}>
-                  {g.em.slice(0,3).map((e,i)=><span key={i} style={{fontSize:7,color:"#555",background:"#0a0a10",padding:"1px 4px",borderRadius:2}}>{e}</span>)}
+                  {g.em.slice(0,3).map((e,i)=><span key={i} style={{fontSize:8,color:"#999",background:"#12121a",padding:"1px 5px",borderRadius:2}}>{e}</span>)}
                 </div>
               </div>
             );})}
@@ -429,9 +429,9 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                   <span style={{fontSize:12,fontWeight:700,color:accent}}>{g.n} <span style={{fontSize:9,color:"#444"}}>{g.k}</span></span>
                   <span style={{fontSize:8,color:"#444"}}>{sel.length>1?`${labels[i]} ${w[i]}%`:"100%"}</span>
                 </div>
-                <div style={{fontSize:8,color:"#555",marginBottom:4}}>BPM {g.bL}–{g.bH} · <span style={{color:(TIERS[g.ti]||{}).c}}>Tier {g.ti}</span></div>
-                <div style={{fontSize:8,color:"#666"}}><span style={{color:"#888"}}>Identity:</span> {g.ei.join(" · ")}</div>
-                <div style={{display:"flex",gap:2,marginTop:5,flexWrap:"wrap"}}>{g.pt.slice(0,5).map((t,j)=><span key={j} style={{fontSize:7,padding:"2px 4px",borderRadius:2,background:`rgba(167,139,250,${t.w*0.2})`,color:"#999"}}>{t.t}</span>)}</div>
+                <div style={{fontSize:9,color:"#888",marginBottom:4}}>BPM {g.bL}–{g.bH} · <span style={{color:(TIERS[g.ti]||{}).c}}>Tier {g.ti}</span></div>
+                <div style={{fontSize:9,color:"#999"}}><span style={{color:"#aaa"}}>Identity:</span> {g.ei.join(" · ")}</div>
+                <div style={{display:"flex",gap:2,marginTop:5,flexWrap:"wrap"}}>{g.pt.slice(0,5).map((t,j)=><span key={j} style={{fontSize:8,padding:"2px 5px",borderRadius:2,background:`rgba(167,139,250,${t.w*0.25})`,color:"#bbb"}}>{t.t}</span>)}</div>
                 <button onClick={e=>{e.stopPropagation();setSel(p=>p.filter(x=>x.s!==g.s));setPerformance("");}} style={{marginTop:4,background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#444",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
               </div>);})}
               </div>
