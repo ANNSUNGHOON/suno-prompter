@@ -430,8 +430,7 @@ OUTPUT: Just the performance description. No labels, no markdown, no quotation m
                   <span style={{fontSize:8,color:"#444"}}>{sel.length>1?`${labels[i]} ${w[i]}%`:"100%"}</span>
                 </div>
                 <div style={{fontSize:9,color:"#888",marginBottom:4}}>BPM {g.bL}–{g.bH} · <span style={{color:(TIERS[g.ti]||{}).c}}>Tier {g.ti}</span></div>
-                <div style={{fontSize:9,color:"#999"}}><span style={{color:"#aaa"}}>Identity:</span> {g.ei.join(" · ")}</div>
-                <div style={{display:"flex",gap:2,marginTop:5,flexWrap:"wrap"}}>{g.pt.slice(0,5).map((t,j)=><span key={j} style={{fontSize:8,padding:"2px 5px",borderRadius:2,background:`rgba(167,139,250,${t.w*0.25})`,color:"#bbb"}}>{t.t}</span>)}</div>
+                <div style={{display:"flex",gap:3,marginTop:6,flexWrap:"wrap"}}>{g.pt.slice(0,7).map((t,j)=><span key={j} style={{fontSize:10,padding:"3px 7px",borderRadius:3,background:`rgba(167,139,250,${t.w*0.3})`,color:"#ccc"}}>{t.t}</span>)}</div>
                 <button onClick={e=>{e.stopPropagation();setSel(p=>p.filter(x=>x.s!==g.s));setPerformance("");}} style={{marginTop:4,background:"transparent",border:"1px solid #1a1a28",borderRadius:3,padding:"2px 6px",color:"#444",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
               </div>);})}
               </div>
