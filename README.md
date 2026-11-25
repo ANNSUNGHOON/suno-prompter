@@ -2,6 +2,10 @@
 
 Style Prompter + Lyrics Prompter를 웹에서 누구나 사용할 수 있도록 Vercel에 배포하는 가이드입니다.
 
+> **참고:** 무료 체험용 `/api/generate` 프록시는 종료되었습니다(HTTP 410). 서버 키를 쓰지 않으며,
+> AI 생성은 앱의 ⚙ 설정에서 본인 API 키(BYOK)를 등록해야 동작합니다.
+> 아래 배포 절차 중 `ANTHROPIC_API_KEY` 환경변수 설정 단계는 더 이상 필요하지 않습니다.
+
 ---
 
 ## 사전 준비
